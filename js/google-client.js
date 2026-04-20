@@ -302,8 +302,8 @@
       driveUploadBlob(full.blob, `photo-${ts}.jpg`),
       driveUploadBlob(thumb.blob, `thumb-${ts}.jpg`),
     ])
+    // 썸네일만 캐시 (원본은 상세 팝업에서 Drive에서 직접 로드)
     photoUrlCache.set(thumbFileId, previewUrl)
-    photoUrlCache.set(fileId, URL.createObjectURL(full.blob))
     return { fileId, thumbFileId, width: full.width, height: full.height }
   }
 
