@@ -2233,6 +2233,8 @@ function deleteSelected() {
       const idx = D.products.findIndex(p => p.id === id)
       if (idx < 0) return
       const p = D.products.splice(idx, 1)[0]
+      const co = D.companies.find(c => c.id === p.companyId)
+      if (co) { p._brandName = co.name; p._brandCatId = co.categoryId }
       p.deletedAt = new Date().toISOString().slice(0,10)
       D.deletedProducts.push(p)
     })
@@ -2248,6 +2250,10 @@ function restoreSelected() {
       if (idx < 0) return
       const p = D.deletedProducts.splice(idx, 1)[0]
       delete p.deletedAt
+      if (!D.companies.find(c => c.id === p.companyId) && p._brandName) {
+        D.companies.push({id: p.companyId, name: p._brandName, categoryId: p._brandCatId || 'all'})
+      }
+      delete p._brandName; delete p._brandCatId
       D.products.push(p)
     })
     selectedIds.clear()

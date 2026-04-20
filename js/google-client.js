@@ -13,7 +13,7 @@
   const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
   const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files'
 
-  const PRODUCT_HEADERS = ['id','brandId','name','detail','buyPrice','sellPrice','site','soldPlatform','date','soldDate','sold','memo','photos','filterValues','deletedAt']
+  const PRODUCT_HEADERS = ['id','brandId','name','detail','buyPrice','sellPrice','site','soldPlatform','date','soldDate','sold','memo','photos','filterValues','deletedAt','brandName','brandCatId']
 
   const BASE_SHEETS = [
     { name: 'meta',            headers: ['key', 'value'] },
@@ -240,6 +240,8 @@
         JSON.stringify((p.thumbnails || []).filter(t => !t?._uploading)),
         JSON.stringify(p.filterValues || {}),
         p.deletedAt || '',
+        p._brandName || '',
+        p._brandCatId || '',
       ])
       await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent(sheetName)}:clear`, { method: 'POST' })
       const values = [PRODUCT_HEADERS, ...rows]
@@ -351,6 +353,8 @@
       thumbnail: null,
       filterValues: JSON.parse(r.filterValues || '{}'),
       deletedAt: r.deletedAt || null,
+      _brandName: r.brandName || null,
+      _brandCatId: r.brandCatId || null,
       isOnSale: false,
     }))
 
