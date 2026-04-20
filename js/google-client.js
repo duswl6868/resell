@@ -150,24 +150,32 @@
       }
       localStorage.setItem('resell_drive_folder_id', state.driveFolderId)
     }
-    // 2) 스프레드시트
+    // 2) 스프레드시트 (기존 검색 → 없으면 생성)
     if (!state.spreadsheetId) {
-      const body = {
-        properties: { title: 'Resell DB' },
-        sheets: BASE_SHEETS.map(s => ({
-          properties: { title: s.name },
-          data: [{ rowData: [{ values: s.headers.map(h => ({ userEnteredValue: { stringValue: h } })) }] }]
-        }))
+      // 기존 Resell DB 검색
+      const sq = encodeURIComponent(`name='Resell DB' and '${state.driveFolderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`)
+      const searchRes = await gFetch(`${DRIVE_API}?q=${sq}&fields=files(id,name)`)
+      const { files: sheetFiles } = await searchRes.json()
+      if (sheetFiles && sheetFiles.length) {
+        state.spreadsheetId = sheetFiles[0].id
+      } else {
+        const body = {
+          properties: { title: 'Resell DB' },
+          sheets: BASE_SHEETS.map(s => ({
+            properties: { title: s.name },
+            data: [{ rowData: [{ values: s.headers.map(h => ({ userEnteredValue: { stringValue: h } })) }] }]
+          }))
+        }
+        const res = await gFetch(SHEETS_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+        const sheet = await res.json()
+        state.spreadsheetId = sheet.spreadsheetId
+        await gFetch(`${DRIVE_API}/${state.spreadsheetId}?addParents=${state.driveFolderId}&fields=id,parents`, { method: 'PATCH' })
       }
-      const res = await gFetch(SHEETS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      })
-      const sheet = await res.json()
-      state.spreadsheetId = sheet.spreadsheetId
       localStorage.setItem('resell_spreadsheet_id', state.spreadsheetId)
-      await gFetch(`${DRIVE_API}/${state.spreadsheetId}?addParents=${state.driveFolderId}&fields=id,parents`, { method: 'PATCH' })
     }
   }
 
