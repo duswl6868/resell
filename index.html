@@ -965,7 +965,7 @@ function getCatFilterNames() { const cf = getCatFilters(); return cf ? cf.filter
 
 // ── State ─────────────────────────────────────────────────────────────
 let catId = null, selectedCoId = null, editPId = null, filter = 'buy'
-let addThumbs = [], editThumbs = []
+let addThumbs = [], editThumbs = [], editThumbsOriginal = []
 let selectMode = false, selectedIds = new Set()
 let hiddenFilterKeys = JSON.parse(LS.getItem('resell_hidden_filters') || '{}')
 let filterCollapsed = LS.getItem('resell_filter_collapsed') === 'true'
@@ -2809,6 +2809,7 @@ function openEdit(id) {
   document.getElementById('edit-sold-date').value = p.soldDate||''
   document.getElementById('edit-memo').value = p.memo||''
   editThumbs = [...(p.thumbnails || (p.thumbnail ? [p.thumbnail] : []))]
+  editThumbsOriginal = [...editThumbs]
   renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file')
   renderFormFilterGroups('edit-filter-chips-container', p.filterValues||{})
   showScreen('screen-edit')
@@ -2833,6 +2834,15 @@ function saveEdit() {
   p.thumbnail = editThumbs[0] || null
   p.thumbnails = [...editThumbs]
   p.filterValues = getSelectedFilterValues('edit-filter-chips-container')
+  // 제거된 Drive 사진 정리
+  if (window.G && G.isLoggedIn()) {
+    const newIds = new Set(editThumbs.filter(t => t && typeof t === 'object' && t.fileId).map(t => t.fileId))
+    editThumbsOriginal.forEach(t => {
+      if (t && typeof t === 'object' && t.fileId && !newIds.has(t.fileId)) {
+        G.deletePhoto(t.fileId).catch(() => {})
+      }
+    })
+  }
   cleanupEmptyBrands(); save(); renderProducts(); closeEdit()
 }
 function deleteProduct() {
@@ -3291,7 +3301,11 @@ function restoreProduct(id) {
 }
 function permanentDeleteProduct(id) {
   showConfirmDialog('영구 삭제할까요?', '이 작업은 되돌릴 수 없습니다', () => {
-    D.deletedProducts = D.deletedProducts.filter(p => p.id !== id)
+    const p = D.deletedProducts.find(x => x.id === id)
+    if (p && window.G && G.isLoggedIn()) {
+      (p.thumbnails || []).forEach(t => { if (t && typeof t === 'object' && t.fileId) G.deletePhoto(t.fileId).catch(() => {}) })
+    }
+    D.deletedProducts = D.deletedProducts.filter(x => x.id !== id)
     cleanupEmptyBrands(); save(); renderProducts(); ic()
   })
 }
