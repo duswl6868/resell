@@ -2633,9 +2633,8 @@ function openDetail(id) {
   function detailImgTag(t, i) {
     if (typeof t === 'object') {
       const fid = t.fileId
-      const preview = t._preview
-      if (fid) return `<img class="detail-img" data-file-id="${fid}" src="${preview||'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='}" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`
-      if (preview) return `<img class="detail-img" src="${preview}" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`
+      if (fid) return `<img class="detail-img" data-file-id="${fid}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`
+      if (t._preview) return `<img class="detail-img" src="${t._preview}" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`
       return `<div class="detail-img-ph"><i data-lucide="image" style="width:48px;height:48px;color:#E5E7EB"></i></div>`
     }
     return `<img class="detail-img" src="${t}" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`
@@ -2751,10 +2750,9 @@ function renderImgViewer() {
   const t = imgViewerThumbs[imgViewerIdx]
   const fid = (typeof t === 'object') ? t.fileId : null
   const preview = (typeof t === 'object') ? t._preview : null
-  const src = fid ? null : (preview || t)
   const imgTag = fid
-    ? `<img data-file-id="${fid}" src="${preview||'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='}" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
-    : `<img src="${src}" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
+    ? `<img data-file-id="${fid}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
+    : `<img src="${preview||t}" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
   document.getElementById('img-viewer-container').innerHTML = imgTag
   hydratePhotos(document.getElementById('img-viewer-container'))
   document.getElementById('img-viewer-counter').textContent =
