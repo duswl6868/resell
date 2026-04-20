@@ -1022,7 +1022,12 @@ function resizeImage(file, maxSize, quality, callback) {
 function getThumb(p) {
   const t = p.thumbnails?.[0] || p.thumbnail || null
   if (!t) return null
-  if (typeof t === 'object' && t.fileId) return t.fileId
+  if (typeof t === 'object') return t.thumbFileId || t.fileId
+  return t
+}
+function getFullPhoto(t) {
+  if (!t) return null
+  if (typeof t === 'object') return t.fileId
   return t
 }
 function isFileId(v) { return v && typeof v === 'string' && !v.startsWith('data:') }
@@ -2276,7 +2281,7 @@ function removePhoto(containerId, labelId, fileInputId, idx) {
   const arr = containerId === 'add-photo-row' ? addThumbs : editThumbs
   const removed = arr.splice(idx, 1)[0]
   if (removed && typeof removed === 'object' && removed.fileId && window.G && G.isLoggedIn()) {
-    G.deletePhoto(removed.fileId).catch(() => {})
+    G.deletePhoto(removed).catch(() => {})
   }
   renderPhotoRow(containerId, labelId, arr, fileInputId)
 }
@@ -2288,7 +2293,7 @@ function replacePhoto(containerId, labelId, fileInputId, idx) {
     const arr = containerId === 'add-photo-row' ? addThumbs : editThumbs
     const old = arr[idx]
     if (window.G && G.isLoggedIn()) {
-      if (old && typeof old === 'object' && old.fileId) { G.deletePhoto(old.fileId).catch(() => {}) }
+      if (old && typeof old === 'object' && old.fileId) { G.deletePhoto(old).catch(() => {}) }
       try { arr[idx] = await G.uploadPhoto(f) } catch(e) { console.error(e); return }
     } else {
       resizeImage(f, 400, 0.7, dataUrl => { arr[idx] = dataUrl; renderPhotoRow(containerId, labelId, arr, fileInputId) }); return
@@ -2850,7 +2855,7 @@ function saveEdit() {
     const newIds = new Set(editThumbs.filter(t => t && typeof t === 'object' && t.fileId).map(t => t.fileId))
     editThumbsOriginal.forEach(t => {
       if (t && typeof t === 'object' && t.fileId && !newIds.has(t.fileId)) {
-        G.deletePhoto(t.fileId).catch(() => {})
+        G.deletePhoto(t).catch(() => {})
       }
     })
   }
@@ -3314,7 +3319,7 @@ function permanentDeleteProduct(id) {
   showConfirmDialog('영구 삭제할까요?', '이 작업은 되돌릴 수 없습니다', () => {
     const p = D.deletedProducts.find(x => x.id === id)
     if (p && window.G && G.isLoggedIn()) {
-      (p.thumbnails || []).forEach(t => { if (t && typeof t === 'object' && t.fileId) G.deletePhoto(t.fileId).catch(() => {}) })
+      (p.thumbnails || []).forEach(t => { if (t && typeof t === 'object' && t.fileId) G.deletePhoto(t).catch(() => {}) })
     }
     D.deletedProducts = D.deletedProducts.filter(x => x.id !== id)
     cleanupEmptyBrands(); save(); renderProducts(); ic()

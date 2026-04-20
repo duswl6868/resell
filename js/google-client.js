@@ -272,14 +272,8 @@
     })
   }
 
-  async function uploadPhoto(file) {
-    await ensureWorkspace()
-    const { blob, width, height } = await resizeToBlob(file)
-    const metadata = {
-      name: `photo-${Date.now()}.jpg`,
-      parents: [state.driveFolderId],
-      mimeType: 'image/jpeg',
-    }
+  async function driveUploadBlob(blob, name) {
+    const metadata = { name, parents: [state.driveFolderId], mimeType: 'image/jpeg' }
     const boundary = '----resell' + Math.random().toString(16).slice(2)
     const body = new Blob([
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
@@ -287,18 +281,32 @@
       blob,
       `\r\n--${boundary}--\r\n`
     ], { type: `multipart/related; boundary=${boundary}` })
-    const res = await gFetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id`, {
-      method: 'POST',
-      body
-    })
-    const { id } = await res.json()
-    return { fileId: id, width, height }
+    const res = await gFetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id`, { method: 'POST', body })
+    return (await res.json()).id
   }
 
-  async function deletePhoto(fileId) {
-    if (!fileId) return
-    try { await gFetch(`${DRIVE_API}/${fileId}`, { method: 'DELETE' }) } catch (e) { console.warn('[G] photo delete failed', e) }
-    clearPhotoCache(fileId)
+  async function uploadPhoto(file) {
+    await ensureWorkspace()
+    const ts = Date.now()
+    const [full, thumb] = await Promise.all([
+      resizeToBlob(file, 1600, 0.85),
+      resizeToBlob(file, 200, 0.7),
+    ])
+    const [fileId, thumbFileId] = await Promise.all([
+      driveUploadBlob(full.blob, `photo-${ts}.jpg`),
+      driveUploadBlob(thumb.blob, `thumb-${ts}.jpg`),
+    ])
+    return { fileId, thumbFileId, width: full.width, height: full.height }
+  }
+
+  async function deletePhoto(photo) {
+    if (!photo) return
+    const fid = typeof photo === 'object' ? photo.fileId : photo
+    const tid = typeof photo === 'object' ? photo.thumbFileId : null
+    if (fid) { try { await gFetch(`${DRIVE_API}/${fid}`, { method: 'DELETE' }) } catch(e) {} }
+    if (tid) { try { await gFetch(`${DRIVE_API}/${tid}`, { method: 'DELETE' }) } catch(e) {} }
+    clearPhotoCache(fid)
+    clearPhotoCache(tid)
   }
 
   const photoUrlCache = new Map()
