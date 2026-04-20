@@ -285,19 +285,24 @@
     return (await res.json()).id
   }
 
-  async function uploadPhoto(file) {
+  async function uploadPhoto(file, onPreview) {
     await ensureWorkspace()
     const ts = Date.now()
+    // 1) 리사이즈 먼저 (로컬, 빠름)
     const [full, thumb] = await Promise.all([
       resizeToBlob(file, 1600, 0.85),
       resizeToBlob(file, 200, 0.7),
     ])
+    // 2) 로컬 프리뷰 즉시 제공
+    const previewUrl = URL.createObjectURL(thumb.blob)
+    const placeholder = { _preview: previewUrl, _uploading: true }
+    if (onPreview) onPreview(placeholder)
+    // 3) Drive 업로드 (네트워크)
     const [fileId, thumbFileId] = await Promise.all([
       driveUploadBlob(full.blob, `photo-${ts}.jpg`),
       driveUploadBlob(thumb.blob, `thumb-${ts}.jpg`),
     ])
-    // 업로드한 blob을 캐시에 즉시 저장 → 다시 다운로드 불필요
-    photoUrlCache.set(thumbFileId, URL.createObjectURL(thumb.blob))
+    photoUrlCache.set(thumbFileId, previewUrl)
     photoUrlCache.set(fileId, URL.createObjectURL(full.blob))
     return { fileId, thumbFileId, width: full.width, height: full.height }
   }

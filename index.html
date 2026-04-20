@@ -2260,7 +2260,9 @@ function renderPhotoRow(containerId, labelId, thumbs, fileInputId) {
       ondrop="photoDrop(event,${i},'${containerId}','${labelId}','${fileInputId}')"
       ondragend="photoDragEnd(event)"
       onclick="replacePhoto('${containerId}','${labelId}','${fileInputId}',${i})">
-      ${typeof t==='object'&&t.fileId?`<img data-file-id="${t.thumbFileId||t.fileId}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">`:`<img src="${t}">`}
+      ${typeof t==='object'&&t._preview?`<img src="${t._preview}">`
+       :typeof t==='object'&&t.fileId?`<img data-file-id="${t.thumbFileId||t.fileId}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">`
+       :`<img src="${t}">`}
       ${i===0?'<div class="photo-badge">대표</div>':''}
       <div class="photo-remove" onclick="event.stopPropagation();removePhoto('${containerId}','${labelId}','${fileInputId}',${i})"
         ontouchstart="event.stopPropagation()">×</div>
@@ -2294,7 +2296,13 @@ function replacePhoto(containerId, labelId, fileInputId, idx) {
     const old = arr[idx]
     if (window.G && G.isLoggedIn()) {
       if (old && typeof old === 'object' && old.fileId) { G.deletePhoto(old).catch(() => {}) }
-      try { arr[idx] = await G.uploadPhoto(f) } catch(e) { console.error(e); return }
+      try {
+        const result = await G.uploadPhoto(f, preview => {
+          arr[idx] = preview
+          renderPhotoRow(containerId, labelId, arr, fileInputId)
+        })
+        arr[idx] = result
+      } catch(e) { console.error(e); return }
     } else {
       resizeImage(f, 400, 0.7, dataUrl => { arr[idx] = dataUrl; renderPhotoRow(containerId, labelId, arr, fileInputId) }); return
     }
@@ -2553,7 +2561,14 @@ document.getElementById('add-file').addEventListener('change', async function() 
   const f = this.files[0]; if (!f) return
   if (addThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
   if (window.G && G.isLoggedIn()) {
-    try { addThumbs.push(await G.uploadPhoto(f)) } catch(e) { console.error(e); alert('사진 업로드 실패'); return }
+    const idx = addThumbs.length
+    try {
+      const result = await G.uploadPhoto(f, preview => {
+        addThumbs[idx] = preview
+        renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file')
+      })
+      addThumbs[idx] = result
+    } catch(e) { console.error(e); addThumbs.splice(idx,1); alert('사진 업로드 실패') }
   } else {
     resizeImage(f, 400, 0.7, dataUrl => { addThumbs.push(dataUrl); renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file') }); return
   }
@@ -2873,7 +2888,14 @@ document.getElementById('edit-file').addEventListener('change', async function()
   const f = this.files[0]; if (!f) return
   if (editThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
   if (window.G && G.isLoggedIn()) {
-    try { editThumbs.push(await G.uploadPhoto(f)) } catch(e) { console.error(e); alert('사진 업로드 실패'); return }
+    const idx = editThumbs.length
+    try {
+      const result = await G.uploadPhoto(f, preview => {
+        editThumbs[idx] = preview
+        renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file')
+      })
+      editThumbs[idx] = result
+    } catch(e) { console.error(e); editThumbs.splice(idx,1); alert('사진 업로드 실패') }
   } else {
     resizeImage(f, 400, 0.7, dataUrl => { editThumbs.push(dataUrl); renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file') }); return
   }
