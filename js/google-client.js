@@ -250,7 +250,7 @@
 
   // ── Photo Upload/Download/Delete ───────────────────────────────────
 
-  function resizeToBlob(file, maxEdge = 800, quality = 0.8) {
+  function resizeToBlob(file, maxEdge = 1600, quality = 0.85) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => {
