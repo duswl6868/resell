@@ -211,6 +211,11 @@
   // ── writeAll (D → Sheets) ─────────────────────────────────────────
 
   async function writeAll(D) {
+    // 빈 데이터로 시트 덮어쓰기 방지
+    if (!D.products?.length && !D.deletedProducts?.length && !D.companies?.length) {
+      console.warn('[writeAll] 빈 데이터 — 쓰기 건너뜀')
+      return
+    }
     await ensureWorkspace()
     const now = new Date().toISOString()
 

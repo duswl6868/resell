@@ -3806,12 +3806,10 @@ document.addEventListener('g:login', async () => {
     await G.ensureWorkspace()
     refreshGUI()
     const remote = await G.readAll()
-    if (remote && remote.products && remote.products.length) {
+    if (remote && (remote.products?.length || remote.deletedProducts?.length || remote.companies?.length)) {
       D = remote
       LS.setItem('resell_data', JSON.stringify(D))
       initApp()
-    } else if (D.products && D.products.length) {
-      await G.writeAll(D)
     }
   } catch (e) { console.error('[g:login] sync failed', e) }
 })
