@@ -907,7 +907,7 @@ const save = () => {
     clearTimeout(_gSyncTimer)
     _gSyncTimer = setTimeout(async () => {
       try { await G.writeAll(D) } catch (e) { console.error('[save] sheet sync failed', e) }
-    }, 3000)
+    }, 1500)
   }
 }
 

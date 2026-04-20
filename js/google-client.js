@@ -104,7 +104,11 @@
       state.tokenClient.callback = (resp) => {
         state.tokenClient.callback = origCb
         if (resp.error) return reject(resp)
-        onToken(resp)
+        // 토큰만 갱신, g:login 발동 안 함
+        state.accessToken = resp.access_token
+        state.tokenExpiresAt = Date.now() + (resp.expires_in - 60) * 1000
+        sessionStorage.setItem('resell_access_token', resp.access_token)
+        sessionStorage.setItem('resell_token_expires', String(state.tokenExpiresAt))
         resolve()
       }
       state.tokenClient.requestAccessToken({ prompt: '' })
