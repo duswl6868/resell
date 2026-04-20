@@ -225,6 +225,12 @@
     const categories = (D.categories || []).filter(c => c.id !== 'all')
     const brandCatMap = {}
     ;(D.companies || []).forEach(b => { brandCatMap[b.id] = b.categoryId })
+    // 삭제된 브랜드의 카테고리도 매핑 (백업된 _brandCatId 사용)
+    allProducts.forEach(p => {
+      if (p.companyId && !brandCatMap[p.companyId] && p._brandCatId) {
+        brandCatMap[p.companyId] = p._brandCatId
+      }
+    })
 
     for (const cat of categories) {
       const sheetName = catSheetName(cat.id, cat.name)
