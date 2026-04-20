@@ -248,6 +248,29 @@
         { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
       )
     }
+
+    // 삭제된 카테고리의 시트 제거
+    const validSheetNames = new Set([
+      ...BASE_SHEETS.map(s => s.name),
+      ...categories.map(c => catSheetName(c.id, c.name))
+    ])
+    const existing = await getExistingSheets()
+    const toDelete = existing.filter(name => name.startsWith('products_') && !validSheetNames.has(name))
+    if (toDelete.length) {
+      const sheetMeta = await gFetch(`${SHEETS_API}/${state.spreadsheetId}?fields=sheets.properties`)
+      const { sheets } = await sheetMeta.json()
+      const deleteRequests = toDelete.map(name => {
+        const s = sheets.find(sh => sh.properties.title === name)
+        return s ? { deleteSheet: { sheetId: s.properties.sheetId } } : null
+      }).filter(Boolean)
+      if (deleteRequests.length) {
+        await gFetch(`${SHEETS_API}/${state.spreadsheetId}:batchUpdate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requests: deleteRequests })
+        })
+      }
+    }
   }
 
   // ── readAll (Sheets → D) ──────────────────────────────────────────
