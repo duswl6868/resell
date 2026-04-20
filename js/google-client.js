@@ -152,8 +152,8 @@
     }
     // 2) 스프레드시트 (기존 검색 → 없으면 생성)
     if (!state.spreadsheetId) {
-      // 기존 Resell DB 검색
-      const sq = encodeURIComponent(`name='Resell DB' and '${state.driveFolderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`)
+      // 기존 Resell DB 검색 (폴더 무관, 이름으로)
+      const sq = encodeURIComponent(`name='Resell DB' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`)
       const searchRes = await gFetch(`${DRIVE_API}?q=${sq}&fields=files(id,name)`)
       const { files: sheetFiles } = await searchRes.json()
       if (sheetFiles && sheetFiles.length) {
