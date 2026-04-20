@@ -180,7 +180,7 @@
         p.date || '', p.soldDate || '',
         p.sold ? 'Y' : 'N',
         p.memo || '',
-        JSON.stringify(p.thumbnails || []),
+        JSON.stringify((p.thumbnails || []).filter(t => !t?._uploading)),
         JSON.stringify(p.filterValues || {}),
         p.deletedAt || '',
       ]),
@@ -285,19 +285,13 @@
     return (await res.json()).id
   }
 
-  async function uploadPhoto(file, onPreview) {
+  async function uploadPhoto(file) {
     await ensureWorkspace()
     const ts = Date.now()
-    // 1) 리사이즈 먼저 (로컬, 빠름)
     const [full, thumb] = await Promise.all([
       resizeToBlob(file, 1600, 0.85),
       resizeToBlob(file, 200, 0.7),
     ])
-    // 2) 로컬 프리뷰 즉시 제공
-    const previewUrl = URL.createObjectURL(thumb.blob)
-    const placeholder = { _preview: previewUrl, _uploading: true }
-    if (onPreview) onPreview(placeholder)
-    // 3) Drive 업로드 (네트워크)
     const [fileId, thumbFileId] = await Promise.all([
       driveUploadBlob(full.blob, `photo-${ts}.jpg`),
       driveUploadBlob(thumb.blob, `thumb-${ts}.jpg`),

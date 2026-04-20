@@ -966,23 +966,31 @@ function getCatFilterNames() { const cf = getCatFilters(); return cf ? cf.filter
 // ── State ─────────────────────────────────────────────────────────────
 let catId = null, selectedCoId = null, editPId = null, filter = 'buy'
 let addThumbs = [], editThumbs = [], editThumbsOriginal = []
-let uploadingCount = 0
-async function uploadAndTrack(file, arr, idx, containerId, labelId, fileInputId) {
-  uploadingCount++
-  try {
-    const result = await G.uploadPhoto(file, preview => {
-      arr[idx] = preview
-      renderPhotoRow(containerId, labelId, arr, fileInputId)
-    })
-    arr[idx] = result
-  } catch(e) {
-    console.error(e)
-    if (arr[idx] && arr[idx]._uploading) arr.splice(idx, 1)
-    alert('사진 업로드 실패')
-  } finally {
-    uploadingCount--
-  }
+
+function startUpload(file, arr, idx, containerId, labelId, fileInputId) {
+  const tempId = '_tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2)
+  const preview = URL.createObjectURL(file)
+  arr[idx] = { _tempId: tempId, _preview: preview, _uploading: true }
   renderPhotoRow(containerId, labelId, arr, fileInputId)
+  // 백그라운드 업로드
+  G.uploadPhoto(file).then(result => {
+    // 현재 배열에서 교체
+    const ai = arr.findIndex(t => t && t._tempId === tempId)
+    if (ai >= 0) arr[ai] = result
+    // 이미 저장된 제품에서도 교체
+    ;[...D.products, ...(D.deletedProducts||[])].forEach(p => {
+      if (!p.thumbnails) return
+      const pi = p.thumbnails.findIndex(t => t && t._tempId === tempId)
+      if (pi >= 0) { p.thumbnails[pi] = result; p.thumbnail = p.thumbnails[0] || null }
+    })
+    renderPhotoRow(containerId, labelId, arr, fileInputId)
+    save()
+  }).catch(e => {
+    console.error('upload failed', e)
+    const ai = arr.findIndex(t => t && t._tempId === tempId)
+    if (ai >= 0) arr.splice(ai, 1)
+    renderPhotoRow(containerId, labelId, arr, fileInputId)
+  })
 }
 let selectMode = false, selectedIds = new Set()
 let hiddenFilterKeys = JSON.parse(LS.getItem('resell_hidden_filters') || '{}')
@@ -2315,7 +2323,7 @@ function replacePhoto(containerId, labelId, fileInputId, idx) {
     const old = arr[idx]
     if (window.G && G.isLoggedIn()) {
       if (old && typeof old === 'object' && old.fileId) { G.deletePhoto(old).catch(() => {}) }
-      await uploadAndTrack(f, arr, idx, containerId, labelId, fileInputId)
+      startUpload(f, arr, idx, containerId, labelId, fileInputId)
     } else {
       resizeImage(f, 400, 0.7, dataUrl => { arr[idx] = dataUrl; renderPhotoRow(containerId, labelId, arr, fileInputId) })
     }
@@ -2545,7 +2553,6 @@ function resolveBrandOnSave(inputId) {
 })
 
 function saveNewProduct() {
-  if (uploadingCount > 0) { alert('사진 업로드 중입니다. 잠시 후 다시 시도해주세요.'); return }
   const name = document.getElementById('add-name').value.trim()
   if (!name) { alert('상품명을 입력해주세요'); return }
   const coId = resolveBrandOnSave('add-brand')
@@ -2574,8 +2581,7 @@ document.getElementById('add-file').addEventListener('change', async function() 
   const f = this.files[0]; if (!f) return
   if (addThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
   if (window.G && G.isLoggedIn()) {
-    const idx = addThumbs.length
-    await uploadAndTrack(f, addThumbs, idx, 'add-photo-row','add-photo-label','add-file')
+    startUpload(f, addThumbs, addThumbs.length, 'add-photo-row','add-photo-label','add-file')
   } else {
     resizeImage(f, 400, 0.7, dataUrl => { addThumbs.push(dataUrl); renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file') })
   }
@@ -2861,7 +2867,6 @@ function closeEdit() {
   showScreen(stack[stack.length-1])
 }
 function saveEdit() {
-  if (uploadingCount > 0) { alert('사진 업로드 중입니다. 잠시 후 다시 시도해주세요.'); return }
   const p = D.products.find(x => x.id===editPId); if (!p) return
   p.companyId = resolveBrandOnSave('edit-brand')
   p.name = document.getElementById('edit-name').value.trim()
@@ -2900,8 +2905,7 @@ document.getElementById('edit-file').addEventListener('change', async function()
   const f = this.files[0]; if (!f) return
   if (editThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
   if (window.G && G.isLoggedIn()) {
-    const idx = editThumbs.length
-    await uploadAndTrack(f, editThumbs, idx, 'edit-photo-row','edit-photo-label','edit-file')
+    startUpload(f, editThumbs, editThumbs.length, 'edit-photo-row','edit-photo-label','edit-file')
   } else {
     resizeImage(f, 400, 0.7, dataUrl => { editThumbs.push(dataUrl); renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file') })
   }
