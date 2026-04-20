@@ -968,12 +968,14 @@ let catId = null, selectedCoId = null, editPId = null, filter = 'buy'
 let addThumbs = [], editThumbs = [], editThumbsOriginal = []
 
 function startUpload(file, arr, idx, containerId, labelId, fileInputId) {
+  console.log('[startUpload] called', file.name, file.size, idx)
   const tempId = '_tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2)
   const preview = URL.createObjectURL(file)
   arr[idx] = { _tempId: tempId, _preview: preview, _uploading: true }
   renderPhotoRow(containerId, labelId, arr, fileInputId)
   // 백그라운드 업로드
   G.uploadPhoto(file).then(result => {
+    console.log('[startUpload] success', result)
     // 현재 배열에서 교체
     const ai = arr.findIndex(t => t && t._tempId === tempId)
     if (ai >= 0) arr[ai] = result
@@ -2904,9 +2906,12 @@ function deleteProduct() {
 document.getElementById('edit-file').addEventListener('change', async function() {
   const f = this.files[0]; if (!f) return
   if (editThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
+  console.log('[edit-file] G exists:', !!window.G, 'configured:', window.G && G.isConfigured())
   if (window.G && G.isConfigured()) {
+    console.log('[edit-file] → startUpload path')
     startUpload(f, editThumbs, editThumbs.length, 'edit-photo-row','edit-photo-label','edit-file')
   } else {
+    console.log('[edit-file] → resizeImage fallback')
     resizeImage(f, 400, 0.7, dataUrl => { editThumbs.push(dataUrl); renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file') })
   }
   this.value = ''
