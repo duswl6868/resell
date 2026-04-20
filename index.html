@@ -3775,12 +3775,10 @@ document.addEventListener('g:login', async () => {
     refreshGUI()
     const remote = await G.readAll()
     if (remote && remote.products && remote.products.length) {
-      if (!confirm('클라우드에서 데이터를 불러올까요?\n(현재 로컬 데이터가 대체됩니다)')) return
       D = remote
       LS.setItem('resell_data', JSON.stringify(D))
       initApp()
-    } else {
-      // 시트가 비어있으면 로컬 데이터를 업로드
+    } else if (D.products && D.products.length) {
       await G.writeAll(D)
     }
   } catch (e) { console.error('[g:login] sync failed', e) }
