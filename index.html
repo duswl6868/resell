@@ -2260,7 +2260,7 @@ function renderPhotoRow(containerId, labelId, thumbs, fileInputId) {
       ondrop="photoDrop(event,${i},'${containerId}','${labelId}','${fileInputId}')"
       ondragend="photoDragEnd(event)"
       onclick="replacePhoto('${containerId}','${labelId}','${fileInputId}',${i})">
-      ${typeof t==='object'&&t.fileId?`<img data-file-id="${t.fileId}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">`:`<img src="${t}">`}
+      ${typeof t==='object'&&t.fileId?`<img data-file-id="${t.thumbFileId||t.fileId}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">`:`<img src="${t}">`}
       ${i===0?'<div class="photo-badge">대표</div>':''}
       <div class="photo-remove" onclick="event.stopPropagation();removePhoto('${containerId}','${labelId}','${fileInputId}',${i})"
         ontouchstart="event.stopPropagation()">×</div>
