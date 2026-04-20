@@ -1533,8 +1533,6 @@ function openSettingsSheet() {
   syncDispItems()
   document.getElementById('settings-sheet').classList.add('active')
   document.querySelector('.screen.active .screen-content').style.overflow = 'hidden'
-  const gurl = document.getElementById('gsheet-url')
-  if (gurl) gurl.value = LS.getItem('resell_gsheet_url') || ''
   ic()
 }
 function closeSettingsSheet() {
@@ -1610,63 +1608,6 @@ function syncDispItems() {
   })
   ic()
 }
-// ── Google Sheets 연동 ──────────────────────────────────────────────
-function getGsheetUrl() {
-  return (document.getElementById('gsheet-url').value || LS.getItem('resell_gsheet_url') || '').trim()
-}
-function gsheetStatus(msg, isError) {
-  const el = document.getElementById('gsheet-status')
-  el.textContent = msg
-  el.style.color = isError ? '#EF4444' : '#9CA3AF'
-}
-function gsheetUpload() {
-  const url = getGsheetUrl()
-  if (!url) { gsheetStatus('URL을 입력하세요', true); return }
-  gsheetStatus('업로드 중...')
-  fetch(url, {
-    method: 'POST',
-    body: JSON.stringify({ data: D })
-  })
-  .then(r => r.json())
-  .then(res => {
-    if (res.success) gsheetStatus('업로드 완료 (' + new Date().toLocaleTimeString() + ')')
-    else gsheetStatus('오류: ' + (res.error || '알 수 없음'), true)
-  })
-  .catch(e => gsheetStatus('연결 실패: ' + e.message, true))
-}
-function gsheetDownload() {
-  const url = getGsheetUrl()
-  if (!url) { gsheetStatus('URL을 입력하세요', true); return }
-  gsheetStatus('다운로드 중...')
-  fetch(url, { redirect: 'follow' })
-  .then(r => r.json())
-  .then(res => {
-    if (res.success && res.data) {
-      if (!confirm('Google Sheets 데이터를 불러올까요?\n(현재 데이터가 대체됩니다)')) { gsheetStatus('취소됨'); return }
-      D = res.data
-      if (!D.deletedProducts) D.deletedProducts = []
-      if (!D.categoryFilters) D.categoryFilters = {}
-      save(); renderCats(); renderProducts()
-      gsheetStatus('다운로드 완료 (' + new Date().toLocaleTimeString() + ')')
-    } else if (res.error) {
-      gsheetStatus('오류: ' + res.error, true)
-    } else {
-      gsheetStatus('백업 데이터가 없습니다', true)
-    }
-  })
-  .catch(e => gsheetStatus('연결 실패: ' + e.message, true))
-}
-
-let _syncTimer = null
-function gsheetAutoSync() {
-  const url = LS.getItem('resell_gsheet_url')
-  if (!url) return
-  if (_syncTimer) clearTimeout(_syncTimer)
-  _syncTimer = setTimeout(() => {
-    fetch(url, { method: 'POST', body: JSON.stringify({ data: D }) }).catch(() => {})
-  }, 3000)
-}
-
 function exportData() {
   const blob = new Blob([JSON.stringify(D, null, 2)], {type:'application/json'})
   const a = document.createElement('a')
