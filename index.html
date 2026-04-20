@@ -530,6 +530,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#D1D5DB;min-height:
               <a id="g-sheet-link" target="_blank" style="flex:1;height:36px;border:1px solid #E5E7EB;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#374151;text-decoration:none;font-family:inherit">시트 열기</a>
               <button onclick="gLogout()" style="flex:1;height:36px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;background:#fff;color:#6B7280;cursor:pointer;font-family:inherit;border:1px solid #E5E7EB">로그아웃</button>
             </div>
+            <button onclick="promptSheetId()" style="background:none;border:none;font-size:11px;color:#9CA3AF;cursor:pointer;font-family:inherit;padding:0;text-align:left">시트 ID 변경</button>
           </div>
         </div>
         </div><!-- /scroll area -->
@@ -3771,6 +3772,17 @@ function renderPeriodYearMonth(el) {
 // ── Google Cloud ─────────────────────────────────────────────────────
 function gLogin() { G.login() }
 function gLogout() { G.logout(); refreshGUI() }
+function promptSheetId() {
+  const input = prompt('시트 URL 또는 ID를 붙여넣으세요', G.state.spreadsheetId || '')
+  if (!input) return
+  const match = input.match(/\/d\/([a-zA-Z0-9_-]+)/)
+  const id = match ? match[1] : input.trim()
+  if (!id) return
+  localStorage.setItem('resell_spreadsheet_id', id)
+  G.state.spreadsheetId = id
+  alert('시트가 연결되었습니다. 새로고침합니다.')
+  location.reload()
+}
 function refreshGUI() {
   const inEl = document.getElementById('g-logged-in')
   const outEl = document.getElementById('g-logged-out')
