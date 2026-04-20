@@ -1375,7 +1375,7 @@ function renderProducts() {
 function renderSoldProducts(el) {
   const cos = catId === 'all' ? D.companies : D.companies.filter(c => c.categoryId === catId)
   const coIds = new Set(cos.map(c => c.id))
-  const soldItems = D.products.filter(p => p.sold && coIds.has(p.companyId))
+  const soldItems = D.products.filter(p => p.sold && (!p.companyId || coIds.has(p.companyId)))
   if (!soldItems.length) { el.innerHTML = '<div class="empty-msg">판매 완료된 상품이 없습니다</div>'; return }
   const groups = {}
   soldItems.sort((a,b) => (b.soldDate||'').localeCompare(a.soldDate||'')).forEach(p => {
@@ -2961,9 +2961,12 @@ function deleteCat(id) {
 }
 function confirmDeleteCat() {
   if (!pendingDeleteCatId) return
+  const delCoIds = D.companies.filter(co => co.categoryId === pendingDeleteCatId).map(co => co.id)
   D.categories = D.categories.filter(c => c.id !== pendingDeleteCatId)
   D.companies = D.companies.filter(co => co.categoryId !== pendingDeleteCatId)
-  D.products = D.products.filter(p => D.companies.find(co => co.id === p.companyId) || !p.companyId)
+  D.products = D.products.filter(p => !delCoIds.includes(p.companyId))
+  if (D.deletedProducts) D.deletedProducts = D.deletedProducts.filter(p => !delCoIds.includes(p.companyId))
+  if (D.categoryFilters) delete D.categoryFilters[pendingDeleteCatId]
   save()
   document.getElementById('delete-cat-dialog').classList.remove('active')
   pendingDeleteCatId = null
@@ -3387,7 +3390,7 @@ function deletedRowHtml(p) {
 function renderDeletedProducts(el) {
   const cos = catId === 'all' ? D.companies : D.companies.filter(c => c.categoryId === catId)
   const coIds = new Set(cos.map(c => c.id))
-  const items = (D.deletedProducts || []).filter(p => coIds.has(p.companyId))
+  const items = (D.deletedProducts || []).filter(p => !p.companyId || coIds.has(p.companyId))
   if (!items.length) { el.innerHTML = '<div class="empty-msg">삭제된 상품이 없습니다</div>'; return }
   if (brandGroup) {
     const byBrand = {}
