@@ -350,7 +350,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#D1D5DB;min-height:
 }
 .img-viewer{display:none;position:absolute;inset:0;background:rgba(0,0,0,.95);z-index:80;border-radius:55px;overflow:hidden;flex-direction:column;align-items:center;justify-content:center}
 .img-viewer.active{display:flex}
-.img-viewer img{max-width:100%;max-height:80%;object-fit:contain}
+.img-viewer img{max-width:100%;max-height:calc(100% - 80px);object-fit:contain}
 .img-viewer-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:18px;background:rgba(255,255,255,.2);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:81}
 .img-viewer-nav{position:absolute;bottom:24px;display:flex;gap:8px;align-items:center}
 .img-viewer-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
@@ -2763,8 +2763,8 @@ function renderImgViewer() {
   const fid = (typeof t === 'object') ? t.fileId : null
   const preview = (typeof t === 'object') ? t._preview : null
   const imgTag = fid
-    ? `<img data-file-id="${fid}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
-    : `<img src="${preview||t}" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
+    ? `<img data-file-id="${fid}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" style="max-width:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
+    : `<img src="${preview||t}" style="max-width:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
   document.getElementById('img-viewer-container').innerHTML = imgTag
   hydratePhotos(document.getElementById('img-viewer-container'))
   document.getElementById('img-viewer-counter').textContent =
