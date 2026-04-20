@@ -273,11 +273,12 @@
   }
 
   async function driveUploadBlob(blob, name) {
-    const metadata = { name, parents: [state.driveFolderId], mimeType: 'image/jpeg' }
+    const mime = blob.type || 'image/jpeg'
+    const metadata = { name, parents: [state.driveFolderId], mimeType: mime }
     const boundary = '----resell' + Math.random().toString(16).slice(2)
     const body = new Blob([
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
-      `--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`,
+      `--${boundary}\r\nContent-Type: ${mime}\r\n\r\n`,
       blob,
       `\r\n--${boundary}--\r\n`
     ], { type: `multipart/related; boundary=${boundary}` })
@@ -288,17 +289,13 @@
   async function uploadPhoto(file) {
     await ensureWorkspace()
     const ts = Date.now()
-    const [full, thumb] = await Promise.all([
-      resizeToBlob(file, 1600, 0.85),
-      resizeToBlob(file, 200, 0.7),
-    ])
+    const thumb = await resizeToBlob(file, 200, 0.7)
     const [fileId, thumbFileId] = await Promise.all([
-      driveUploadBlob(full.blob, `photo-${ts}.jpg`),
+      driveUploadBlob(file, `photo-${ts}.jpg`),
       driveUploadBlob(thumb.blob, `thumb-${ts}.jpg`),
     ])
-    // 썸네일만 캐시 (원본은 상세 팝업에서 Drive에서 직접 로드)
-    photoUrlCache.set(thumbFileId, previewUrl)
-    return { fileId, thumbFileId, width: full.width, height: full.height }
+    photoUrlCache.set(thumbFileId, URL.createObjectURL(thumb.blob))
+    return { fileId, thumbFileId, width: 0, height: 0 }
   }
 
   async function deletePhoto(photo) {
