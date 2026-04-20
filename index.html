@@ -679,8 +679,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#D1D5DB;min-height:
     </div>
     <div style="padding:8px 20px">
       <div style="display:flex;border-radius:8px;border:1.5px solid #E5E7EB;overflow:hidden">
-        <button class="stats-mode-btn" data-mode="buy" onclick="setStatsMode('buy')" style="flex:1;height:38px;border:none;font-size:13px;font-weight:500;color:#6B7280;background:#fff;cursor:pointer;font-family:inherit;border-radius:8px 0 0 8px">구매</button>
-        <button class="stats-mode-btn active" data-mode="sell" onclick="setStatsMode('sell')" style="flex:1;height:38px;border:none;font-size:13px;font-weight:600;color:#fff;background:#111;cursor:pointer;font-family:inherit;border-radius:0 8px 8px 0">판매</button>
+        <button class="stats-mode-btn active" data-mode="buy" onclick="setStatsMode('buy')" style="flex:1;height:38px;border:none;font-size:13px;font-weight:600;color:#fff;background:#111;cursor:pointer;font-family:inherit;border-radius:8px 0 0 8px">구매</button>
+        <button class="stats-mode-btn" data-mode="sell" onclick="setStatsMode('sell')" style="flex:1;height:38px;border:none;font-size:13px;font-weight:500;color:#6B7280;background:#fff;cursor:pointer;font-family:inherit;border-radius:0 8px 8px 0">판매</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;padding:8px 20px">
@@ -2588,15 +2588,20 @@ function openDetail(id) {
   const brandName = co ? co.name : '브랜드'
   const thumbs = (p.thumbnails && p.thumbnails.length) ? p.thumbnails : (p.thumbnail ? [p.thumbnail] : [])
   window._detailThumbs = thumbs
+  function detailImgTag(t, i) {
+    const fid = (typeof t === 'object' && t.fileId) ? t.fileId : null
+    if (fid) return `<img class="detail-img" data-file-id="${fid}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`
+    return `<img class="detail-img" src="${t}" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`
+  }
   let imgHtml, dotsHtml
   if (!thumbs.length) {
     imgHtml = `<div class="detail-img-ph"><i data-lucide="image" style="width:48px;height:48px;color:#E5E7EB"></i></div>`
     dotsHtml = ''
   } else if (thumbs.length === 1) {
-    imgHtml = `<img src="${thumbs[0]}" class="detail-img" onclick="openImgViewer(window._detailThumbs, 0)" style="cursor:pointer">`
+    imgHtml = detailImgTag(thumbs[0], 0)
     dotsHtml = ''
   } else {
-    imgHtml = `<div class="detail-carousel" id="detail-carousel">${thumbs.map((t,i) => `<img src="${t}" onclick="openImgViewer(window._detailThumbs, ${i})" style="cursor:pointer">`).join('')}</div>`
+    imgHtml = `<div class="detail-carousel" id="detail-carousel">${thumbs.map((t,i) => detailImgTag(t,i)).join('')}</div>`
     dotsHtml = `<div class="detail-dots" style="display:flex;justify-content:center;gap:6px;padding:8px 0">${thumbs.map((t,i) => `<div class="detail-dot${i===0?' active':''}" style="width:${i===0?8:6}px;height:${i===0?8:6}px;border-radius:50%;background:${i===0?'#374151':'#D1D5DB'}"></div>`).join('')}</div>`
   }
 
@@ -2697,8 +2702,12 @@ function openImgViewer(thumbs, startIdx) {
 }
 function renderImgViewer() {
   const t = imgViewerThumbs[imgViewerIdx]
-  document.getElementById('img-viewer-container').innerHTML =
-    `<img src="${t}" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
+  const fid = (typeof t === 'object' && t.fileId) ? t.fileId : null
+  const imgTag = fid
+    ? `<img data-file-id="${fid}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
+    : `<img src="${t}" style="max-width:100%;max-height:60vh;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:8px">`
+  document.getElementById('img-viewer-container').innerHTML = imgTag
+  hydratePhotos(document.getElementById('img-viewer-container'))
   document.getElementById('img-viewer-counter').textContent =
     `${imgViewerIdx+1} / ${imgViewerThumbs.length}`
   document.getElementById('img-viewer-dots').innerHTML = imgViewerThumbs.length > 1
@@ -2960,7 +2969,7 @@ let editCatId = null
 function openCatAdd() {
   editCatId = null
   document.getElementById('cat-add-title').textContent = '카테고리 추가'
-  selIcon='layout-grid'; selBg='#EEF1F5'; selFg='#94A3B8'
+  selIcon='shirt'; selBg='#FFF1F5'; selFg='#FB7BA2'
   document.getElementById('cat-name').value = ''
   _catNamePrev = ''
   renderIconGrid(); renderColorGrid(); updateCatPreview()
@@ -3355,7 +3364,7 @@ let statsPeriodStart = '', statsPeriodEnd = ''
 const BRAND_COLORS = ['#FB7BA2','#60A5FA','#34D399','#FDBA74','#A78BFA','#22D3EE','#F87171','#EAB308']
 
 function openStats() {
-  statsTab = 'weekly'; statsWeeklyOffset = 0; statsMode = 'sell'
+  statsTab = 'weekly'; statsWeeklyOffset = 0; statsMode = 'buy'
   statsMonthlyYear = new Date().getFullYear()
   updateStatsPeriodRange()
   showScreen('screen-stats'); renderStats()
@@ -3410,6 +3419,13 @@ function fmtDate(d) { return d.replace(/-/g,'.') }
 function fmtMon(d) { return `${parseInt(d.split('-')[1])}월` }
 
 function renderStats() {
+  // mode buttons
+  document.querySelectorAll('.stats-mode-btn').forEach(b => {
+    const active = b.dataset.mode === statsMode
+    b.style.background = active ? '#111' : '#fff'
+    b.style.color = active ? '#fff' : '#6B7280'
+    b.style.fontWeight = active ? '600' : '500'
+  })
   // tabs
   document.querySelectorAll('.stats-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === statsTab))
   renderStatsNav(); renderStatsSummary(); renderStatsDetail()
