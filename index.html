@@ -1442,7 +1442,7 @@ function rowHtml(p) {
 
 function gridHtml(p) {
   const t = getThumb(p)
-  const thumb = t ? `<img src="${t}" class="grid-card-img">` : `<div class="grid-card-img-ph"><i data-lucide="image" style="width:24px;height:24px;color:#E5E7EB"></i></div>`
+  const thumb = t ? (isFileId(t) ? `<img class="grid-card-img" data-file-id="${t}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">` : `<img src="${t}" class="grid-card-img">`) : `<div class="grid-card-img-ph"><i data-lucide="image" style="width:24px;height:24px;color:#E5E7EB"></i></div>`
   let priceHtml
   if (p.sellPrice && p.buyPrice) {
     const pct = Math.round((1 - p.sellPrice / p.buyPrice) * 100)
