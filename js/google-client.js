@@ -296,6 +296,9 @@
       driveUploadBlob(full.blob, `photo-${ts}.jpg`),
       driveUploadBlob(thumb.blob, `thumb-${ts}.jpg`),
     ])
+    // 업로드한 blob을 캐시에 즉시 저장 → 다시 다운로드 불필요
+    photoUrlCache.set(thumbFileId, URL.createObjectURL(thumb.blob))
+    photoUrlCache.set(fileId, URL.createObjectURL(full.blob))
     return { fileId, thumbFileId, width: full.width, height: full.height }
   }
 
