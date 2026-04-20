@@ -11,6 +11,7 @@
 
   const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets'
   const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
+  const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files'
 
   const SHEET_SCHEMA = [
     { name: 'meta',            headers: ['key', 'value'] },
@@ -29,7 +30,7 @@
     driveFolderId: null,
   }
 
-  window.G = { state, init, login, logout, isLoggedIn, fetch: gFetch, ensureWorkspace, writeAll, readAll, SHEET_SCHEMA }
+  window.G = { state, init, login, logout, isLoggedIn, fetch: gFetch, ensureWorkspace, writeAll, readAll, SHEET_SCHEMA, uploadPhoto, deletePhoto, photoUrl, clearPhotoCache }
 
   function isLoggedIn() {
     return !!state.accessToken && Date.now() < state.tokenExpiresAt
@@ -244,6 +245,83 @@
       categoryFilters: Object.fromEntries((byName.categoryFilters || []).map(r => [
         r.categoryId, { filters: JSON.parse(r.filters || '{}'), filterNames: JSON.parse(r.filterNames || '{}') }
       ])),
+    }
+  }
+
+  // ── Photo Upload/Download/Delete ───────────────────────────────────
+
+  function resizeToBlob(file, maxEdge = 800, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const img = new Image()
+        img.onload = () => {
+          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
+          const w = Math.round(img.width * scale)
+          const h = Math.round(img.height * scale)
+          const c = document.createElement('canvas')
+          c.width = w; c.height = h
+          c.getContext('2d').drawImage(img, 0, 0, w, h)
+          c.toBlob(blob => resolve({ blob, width: w, height: h }), 'image/jpeg', quality)
+        }
+        img.onerror = reject
+        img.src = reader.result
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function uploadPhoto(file) {
+    await ensureWorkspace()
+    const { blob, width, height } = await resizeToBlob(file)
+    const metadata = {
+      name: `photo-${Date.now()}.jpg`,
+      parents: [state.driveFolderId],
+      mimeType: 'image/jpeg',
+    }
+    const boundary = '----resell' + Math.random().toString(16).slice(2)
+    const body = new Blob([
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
+      `--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`,
+      blob,
+      `\r\n--${boundary}--\r\n`
+    ], { type: `multipart/related; boundary=${boundary}` })
+    const res = await gFetch(`${DRIVE_UPLOAD}?uploadType=multipart&fields=id`, {
+      method: 'POST',
+      body
+    })
+    const { id } = await res.json()
+    return { fileId: id, width, height }
+  }
+
+  async function deletePhoto(fileId) {
+    if (!fileId) return
+    try { await gFetch(`${DRIVE_API}/${fileId}`, { method: 'DELETE' }) } catch (e) { console.warn('[G] photo delete failed', e) }
+    clearPhotoCache(fileId)
+  }
+
+  const photoUrlCache = new Map()
+
+  async function photoUrl(fileId) {
+    if (!fileId) return null
+    if (photoUrlCache.has(fileId)) return photoUrlCache.get(fileId)
+    const res = await gFetch(`${DRIVE_API}/${fileId}?alt=media`)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    photoUrlCache.set(fileId, url)
+    return url
+  }
+
+  function clearPhotoCache(fileId) {
+    if (fileId) {
+      const u = photoUrlCache.get(fileId)
+      if (u) URL.revokeObjectURL(u)
+      photoUrlCache.delete(fileId)
+    } else {
+      photoUrlCache.forEach(u => URL.revokeObjectURL(u))
+      photoUrlCache.clear()
     }
   }
 
