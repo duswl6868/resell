@@ -86,7 +86,7 @@
   }
 
   function logout() {
-    if (state.accessToken) google.accounts.oauth2.revoke(state.accessToken, () => {})
+    // 토큰 revoke 안 함 — Drive 파일 접근 권한 유지
     state.accessToken = null
     state.tokenExpiresAt = 0
     state.email = null
