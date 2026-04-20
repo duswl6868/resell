@@ -221,8 +221,7 @@
     }
 
     // 카테고리별 products 시트
-    const activeProducts = D.products || []
-    const deletedProducts = D.deletedProducts || []
+    const allProducts = [...(D.products || []), ...(D.deletedProducts || [])]
     const categories = (D.categories || []).filter(c => c.id !== 'all')
     const brandCatMap = {}
     ;(D.companies || []).forEach(b => { brandCatMap[b.id] = b.categoryId })
@@ -243,11 +242,11 @@
       ]
     }
 
-    // 카테고리별 시트 (활성 상품만)
+    // 카테고리별 시트 (활성 + 삭제 모두)
     for (const cat of categories) {
       const sheetName = catSheetName(cat.id, cat.name)
       await ensureSheet(sheetName)
-      const catProducts = activeProducts.filter(p => brandCatMap[p.companyId] === cat.id)
+      const catProducts = allProducts.filter(p => brandCatMap[p.companyId] === cat.id)
       const rows = catProducts.map(productRow)
       await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent(sheetName)}:clear`, { method: 'POST' })
       const values = [PRODUCT_HEADERS, ...rows]
@@ -257,20 +256,10 @@
       )
     }
 
-    // deleted 시트 (삭제된 상품 전체)
-    await ensureSheet('deleted')
-    const deletedRows = deletedProducts.map(productRow)
-    await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent('deleted')}:clear`, { method: 'POST' })
-    await gFetch(
-      `${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent('deleted')}!A1?valueInputOption=RAW`,
-      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values: [PRODUCT_HEADERS, ...deletedRows] }) }
-    )
-
     // 삭제된 카테고리의 시트 제거
     const validSheetNames = new Set([
       ...BASE_SHEETS.map(s => s.name),
-      ...categories.map(c => catSheetName(c.id, c.name)),
-      'deleted'
+      ...categories.map(c => catSheetName(c.id, c.name))
     ])
     const existing = await getExistingSheets()
     const toDelete = existing.filter(name => name.startsWith('products_') && !validSheetNames.has(name))
@@ -338,23 +327,8 @@
       }
     }
 
-    // deleted 시트 읽기
-    let deletedRaw = []
-    if (existingSheets.includes('deleted')) {
-      const delRes = await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent('deleted')}?majorDimension=ROWS`)
-      const delData = await delRes.json()
-      if (delData.values) {
-        const [headers = [], ...rows] = delData.values
-        rows.forEach(r => {
-          const o = {}
-          headers.forEach((h, idx) => { o[h] = r[idx] !== undefined ? r[idx] : '' })
-          deletedRaw.push(o)
-        })
-      }
-    }
-
     // 구버전 products 시트 호환 (마이그레이션)
-    if (!allProducts.length && !deletedRaw.length && existingSheets.includes('products')) {
+    if (!allProducts.length && existingSheets.includes('products')) {
       const oldRes = await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/products?majorDimension=ROWS`)
       const oldData = await oldRes.json()
       if (oldData.values) {
@@ -391,14 +365,13 @@
       }
     }
 
-    const parsedActive = allProducts.map(parseProduct).filter(p => !p.deletedAt)
-    const parsedDeleted = deletedRaw.map(parseProduct)
+    const parsedProducts = allProducts.map(parseProduct)
 
     return {
       categories,
       companies: (byName.brands || []).map(r => ({ id: r.id, name: r.name, categoryId: r.categoryId })),
-      products: parsedActive,
-      deletedProducts: parsedDeleted,
+      products: parsedProducts.filter(p => !p.deletedAt),
+      deletedProducts: parsedProducts.filter(p => !!p.deletedAt),
       categoryFilters: Object.fromEntries((byName.categoryFilters || []).map(r => [
         r.categoryId, { filters: JSON.parse(r.filters || '{}'), filterNames: JSON.parse(r.filterNames || '{}') }
       ])),

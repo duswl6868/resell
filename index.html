@@ -948,9 +948,10 @@ D.deletedProducts = D.deletedProducts.filter(p => {
   return age < 30
 })
 function cleanupEmptyBrands() {
-  D.companies = D.companies.filter(c =>
-    D.products.some(p => p.companyId === c.id)
-  )
+  // 브랜드는 삭제하지 않음 — UI에서만 숨김
+}
+function hasActiveProducts(brandId) {
+  return D.products.some(p => p.companyId === brandId && !p.sold)
 }
 
 // ── Category filter helpers ──────────────────────────────────────────
@@ -2431,7 +2432,7 @@ function renderBrandDropdown(inputId, dropdownId, wrapId) {
   const dropdown = document.getElementById(dropdownId)
   const wrap = document.getElementById(wrapId)
   const query = input.value.trim().toLowerCase()
-  const cos = getCompaniesForCat()
+  const cos = getCompaniesForCat().filter(c => D.products.some(p => p.companyId === c.id))
   const matches = query ? cos.filter(c => c.name.toLowerCase().includes(query)) : cos
   const productCounts = {}
   D.products.forEach(p => { if (!p.sold) productCounts[p.companyId] = (productCounts[p.companyId]||0) + 1 })
