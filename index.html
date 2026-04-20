@@ -1217,10 +1217,7 @@ function renderP2FilterChips() {
     const cat = D.categories.find(c => c.id === catId)
     const icon = cat ? cat.icon : ''
     const name = cat ? cat.name : ''
-    const hasAi = ['shirt','baby'].includes(icon) || /옷|의류|아기|육아/.test(name)
-      || ['sparkles'].includes(icon) || /화장|메이크업|뷰티|코스메틱/.test(name)
-      || ['monitor','smartphone','headphones','camera'].includes(icon) || /전자|디지털|기기/.test(name)
-      || ['book-open'].includes(icon) || /도서|책/.test(name)
+    const hasAi = ['shirt','baby','sparkles','monitor','smartphone','headphones','camera','book-open'].includes(icon)
     const aiBtn = hasAi ? `<button style="height:28px;padding:0 12px;border-radius:14px;border:none;background:#374151;color:#fff;font-size:12px;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:4px" onclick="addAiFilters()"><i data-lucide="sparkles" style="width:12px;height:12px"></i>ai필터 추가</button>` : ''
     el.innerHTML = `<div class="p2-chip-row">
       <button style="height:28px;padding:0 12px;border-radius:14px;border:1px dashed #D1D5DB;background:#fff;color:#9CA3AF;font-size:12px;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:4px" onclick="openFilterManage()"><i data-lucide="plus" style="width:12px;height:12px"></i>필터 추가</button>
@@ -1809,13 +1806,14 @@ function renderSheetFilterGroups() {
   // ai추가 버튼 상태
   const aiBtn = document.getElementById('sheet-ai-btn')
   if (aiBtn) {
-    const hasFilters = filterKeys.length > 0
-    if (hasFilters) {
-      aiBtn.className = 'filter-pill disabled'
-      aiBtn.style.pointerEvents = 'none'
+    const cat = D.categories.find(c => c.id === catId)
+    const catIcon = cat ? cat.icon : ''
+    const aiSupported = ['shirt','baby','sparkles','monitor','smartphone','headphones','camera','book-open'].includes(catIcon)
+    if (!aiSupported || filterKeys.length > 0) {
+      aiBtn.style.display = 'none'
     } else {
+      aiBtn.style.display = ''
       aiBtn.className = 'filter-pill dark'
-      aiBtn.style.pointerEvents = ''
     }
   }
 }
@@ -1949,20 +1947,20 @@ function addAiFilters() {
   const cat = D.categories.find(c => c.id === catId)
   const name = cat ? cat.name : ''
   const icon = cat ? cat.icon : ''
-  if (['shirt'].includes(icon) || /옷|의류/.test(name)) {
+  if (['shirt'].includes(icon)) {
     cf.filters.seasons = ['봄','여름','가을','겨울']
     cf.filters.categories = ['아우터','상의','하의','셋업','드레스','모자','악세사리','신발']
     cf.filterNames = { seasons:'시즌', categories:'종류' }
-  } else if (['baby'].includes(icon) || /아기|육아/.test(name)) {
+  } else if (['baby'].includes(icon)) {
     cf.filters.categories = ['수유','위생','목욕','외출','침구','장난감','책']
     cf.filterNames = { categories:'종류' }
-  } else if (['sparkles'].includes(icon) || /화장|메이크업|뷰티|코스메틱/.test(name)) {
+  } else if (['sparkles'].includes(icon)) {
     cf.filters.categories = ['스킨케어','메이크업','헤어','바디','향수','도구']
     cf.filterNames = { categories:'종류' }
-  } else if (['monitor','smartphone','headphones','camera'].includes(icon) || /전자|디지털|기기/.test(name)) {
+  } else if (['monitor','smartphone','headphones','camera'].includes(icon)) {
     cf.filters.categories = ['노트북/pc','모바일/태블릿','주변기기']
     cf.filterNames = { categories:'종류' }
-  } else if (['book-open'].includes(icon) || /도서|책/.test(name)) {
+  } else if (['book-open'].includes(icon)) {
     cf.filters.genre = ['소설','에세이','자기계발','학습','아동','만화']
     cf.filterNames = { genre:'장르' }
   } else {
