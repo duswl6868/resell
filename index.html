@@ -3329,9 +3329,13 @@ function deletedRowHtml(p) {
   </div>`
 }
 function renderDeletedProducts(el) {
-  const cos = catId === 'all' ? D.companies : D.companies.filter(c => c.categoryId === catId)
-  const coIds = new Set(cos.map(c => c.id))
-  const items = (D.deletedProducts || []).filter(p => !p.companyId || coIds.has(p.companyId))
+  let items
+  if (catId === 'all') {
+    items = D.deletedProducts || []
+  } else {
+    const coIds = new Set(D.companies.filter(c => c.categoryId === catId).map(c => c.id))
+    items = (D.deletedProducts || []).filter(p => !p.companyId || coIds.has(p.companyId) || p._brandCatId === catId)
+  }
   if (!items.length) { el.innerHTML = '<div class="empty-msg">삭제된 상품이 없습니다</div>'; return }
   if (brandGroup) {
     const byBrand = {}
