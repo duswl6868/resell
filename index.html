@@ -1118,13 +1118,24 @@ function goBack() {
     swiping = false
     const dx = e.changedTouches[0].clientX - startX
     const screen = document.querySelector('.screen.active')
-    if (screen) {
+    if (dx > 80 && stack.length > 1) {
+      if (screen) {
+        screen.style.transition = 'transform .25s ease, opacity .25s ease'
+        screen.style.transform = 'translateX(100%)'
+        screen.style.opacity = '0'
+        setTimeout(() => {
+          screen.style.transition = ''
+          screen.style.transform = ''
+          screen.style.opacity = ''
+          goBack()
+        }, 250)
+      } else {
+        goBack()
+      }
+    } else if (screen) {
       screen.style.transition = 'transform .2s ease, opacity .2s ease'
       screen.style.transform = ''
       screen.style.opacity = ''
-    }
-    if (dx > 80 && stack.length > 1) {
-      goBack()
     }
   })
 })()
@@ -3312,7 +3323,7 @@ function permanentDeleteProduct(id) {
 function deletedRowHtml(p) {
   const days = Math.max(0, 30 - Math.floor((Date.now() - new Date(p.deletedAt).getTime()) / (1000*60*60*24)))
   const t = getThumb(p)
-  const thumb = t ? `<img src="${t}" class="thumb-img">` : `<div class="thumb-placeholder"><i data-lucide="image" style="width:20px;height:20px;color:#E5E7EB"></i></div>`
+  const thumb = thumbImgHtml(t, 'thumb-img', 60)
   const checked = selectedIds.has(p.id)
   const chkHtml = selectMode ? `<div class="select-check${checked?' checked':''}">${checked?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':''}</div>` : ''
   const clickAction = selectMode ? `toggleSelectItem('${p.id}',event)` : ''
