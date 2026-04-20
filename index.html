@@ -966,6 +966,24 @@ function getCatFilterNames() { const cf = getCatFilters(); return cf ? cf.filter
 // ── State ─────────────────────────────────────────────────────────────
 let catId = null, selectedCoId = null, editPId = null, filter = 'buy'
 let addThumbs = [], editThumbs = [], editThumbsOriginal = []
+let uploadingCount = 0
+async function uploadAndTrack(file, arr, idx, containerId, labelId, fileInputId) {
+  uploadingCount++
+  try {
+    const result = await G.uploadPhoto(file, preview => {
+      arr[idx] = preview
+      renderPhotoRow(containerId, labelId, arr, fileInputId)
+    })
+    arr[idx] = result
+  } catch(e) {
+    console.error(e)
+    if (arr[idx] && arr[idx]._uploading) arr.splice(idx, 1)
+    alert('사진 업로드 실패')
+  } finally {
+    uploadingCount--
+  }
+  renderPhotoRow(containerId, labelId, arr, fileInputId)
+}
 let selectMode = false, selectedIds = new Set()
 let hiddenFilterKeys = JSON.parse(LS.getItem('resell_hidden_filters') || '{}')
 let filterCollapsed = LS.getItem('resell_filter_collapsed') === 'true'
@@ -1100,15 +1118,16 @@ function goBack() {
     if (!swiping) return
     const dx = e.touches[0].clientX - startX
     const dy = Math.abs(e.touches[0].clientY - startY)
-    // 세로 움직임이 크면 스와이프 취소
-    if (dy > 50) {
+    // 가로보다 세로가 먼저 크면 스와이프 취소 (초반에만 판단)
+    if (dx < 10 && dy > 30) {
       swiping = false
       const screen = document.querySelector('.screen.active')
       if (screen) { screen.style.transition = 'transform .2s ease, opacity .2s ease'; screen.style.transform = ''; screen.style.opacity = '' }
       return
     }
     // 시각 피드백: 현재 화면 살짝 이동
-    if (dx > 0) {
+    if (dx > 10) {
+      e.preventDefault()
       const screen = document.querySelector('.screen.active')
       if (screen) {
         screen.style.transition = 'none'
@@ -2296,17 +2315,10 @@ function replacePhoto(containerId, labelId, fileInputId, idx) {
     const old = arr[idx]
     if (window.G && G.isLoggedIn()) {
       if (old && typeof old === 'object' && old.fileId) { G.deletePhoto(old).catch(() => {}) }
-      try {
-        const result = await G.uploadPhoto(f, preview => {
-          arr[idx] = preview
-          renderPhotoRow(containerId, labelId, arr, fileInputId)
-        })
-        arr[idx] = result
-      } catch(e) { console.error(e); return }
+      await uploadAndTrack(f, arr, idx, containerId, labelId, fileInputId)
     } else {
-      resizeImage(f, 400, 0.7, dataUrl => { arr[idx] = dataUrl; renderPhotoRow(containerId, labelId, arr, fileInputId) }); return
+      resizeImage(f, 400, 0.7, dataUrl => { arr[idx] = dataUrl; renderPhotoRow(containerId, labelId, arr, fileInputId) })
     }
-    renderPhotoRow(containerId, labelId, arr, fileInputId)
   }
   input.click()
 }
@@ -2533,6 +2545,7 @@ function resolveBrandOnSave(inputId) {
 })
 
 function saveNewProduct() {
+  if (uploadingCount > 0) { alert('사진 업로드 중입니다. 잠시 후 다시 시도해주세요.'); return }
   const name = document.getElementById('add-name').value.trim()
   if (!name) { alert('상품명을 입력해주세요'); return }
   const coId = resolveBrandOnSave('add-brand')
@@ -2562,17 +2575,10 @@ document.getElementById('add-file').addEventListener('change', async function() 
   if (addThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
   if (window.G && G.isLoggedIn()) {
     const idx = addThumbs.length
-    try {
-      const result = await G.uploadPhoto(f, preview => {
-        addThumbs[idx] = preview
-        renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file')
-      })
-      addThumbs[idx] = result
-    } catch(e) { console.error(e); addThumbs.splice(idx,1); alert('사진 업로드 실패') }
+    await uploadAndTrack(f, addThumbs, idx, 'add-photo-row','add-photo-label','add-file')
   } else {
-    resizeImage(f, 400, 0.7, dataUrl => { addThumbs.push(dataUrl); renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file') }); return
+    resizeImage(f, 400, 0.7, dataUrl => { addThumbs.push(dataUrl); renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file') })
   }
-  renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file')
   this.value = ''
 })
 
@@ -2855,6 +2861,7 @@ function closeEdit() {
   showScreen(stack[stack.length-1])
 }
 function saveEdit() {
+  if (uploadingCount > 0) { alert('사진 업로드 중입니다. 잠시 후 다시 시도해주세요.'); return }
   const p = D.products.find(x => x.id===editPId); if (!p) return
   p.companyId = resolveBrandOnSave('edit-brand')
   p.name = document.getElementById('edit-name').value.trim()
@@ -2894,17 +2901,10 @@ document.getElementById('edit-file').addEventListener('change', async function()
   if (editThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
   if (window.G && G.isLoggedIn()) {
     const idx = editThumbs.length
-    try {
-      const result = await G.uploadPhoto(f, preview => {
-        editThumbs[idx] = preview
-        renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file')
-      })
-      editThumbs[idx] = result
-    } catch(e) { console.error(e); editThumbs.splice(idx,1); alert('사진 업로드 실패') }
+    await uploadAndTrack(f, editThumbs, idx, 'edit-photo-row','edit-photo-label','edit-file')
   } else {
-    resizeImage(f, 400, 0.7, dataUrl => { editThumbs.push(dataUrl); renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file') }); return
+    resizeImage(f, 400, 0.7, dataUrl => { editThumbs.push(dataUrl); renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file') })
   }
-  renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file')
   this.value = ''
 })
 
