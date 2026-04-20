@@ -436,7 +436,7 @@
   async function uploadPhoto(file) {
     await ensureWorkspace()
     const ts = Date.now()
-    const thumb = await resizeToBlob(file, 200, 0.7)
+    const thumb = await resizeToBlob(file, 400, 0.8)
     const [fileId, thumbFileId] = await Promise.all([
       driveUploadBlob(file, `photo-${ts}.jpg`),
       driveUploadBlob(thumb.blob, `thumb-${ts}.jpg`),
