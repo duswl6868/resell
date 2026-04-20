@@ -1096,7 +1096,12 @@ function goBack() {
     const dx = e.touches[0].clientX - startX
     const dy = Math.abs(e.touches[0].clientY - startY)
     // 세로 움직임이 크면 스와이프 취소
-    if (dy > 50) { swiping = false; return }
+    if (dy > 50) {
+      swiping = false
+      const screen = document.querySelector('.screen.active')
+      if (screen) { screen.style.transition = 'transform .2s ease, opacity .2s ease'; screen.style.transform = ''; screen.style.opacity = '' }
+      return
+    }
     // 시각 피드백: 현재 화면 살짝 이동
     if (dx > 0) {
       const screen = document.querySelector('.screen.active')
@@ -2257,8 +2262,12 @@ function renderPhotoRow(containerId, labelId, thumbs, fileInputId) {
   ic()
 }
 function removePhoto(containerId, labelId, fileInputId, idx) {
-  if (containerId === 'add-photo-row') { addThumbs.splice(idx,1); renderPhotoRow(containerId, labelId, addThumbs, fileInputId) }
-  else { editThumbs.splice(idx,1); renderPhotoRow(containerId, labelId, editThumbs, fileInputId) }
+  const arr = containerId === 'add-photo-row' ? addThumbs : editThumbs
+  const removed = arr.splice(idx, 1)[0]
+  if (removed && typeof removed === 'object' && removed.fileId && window.G && G.isLoggedIn()) {
+    G.deletePhoto(removed.fileId).catch(() => {})
+  }
+  renderPhotoRow(containerId, labelId, arr, fileInputId)
 }
 function replacePhoto(containerId, labelId, fileInputId, idx) {
   const input = document.createElement('input')
@@ -2266,7 +2275,9 @@ function replacePhoto(containerId, labelId, fileInputId, idx) {
   input.onchange = async function() {
     const f = this.files[0]; if (!f) return
     const arr = containerId === 'add-photo-row' ? addThumbs : editThumbs
+    const old = arr[idx]
     if (window.G && G.isLoggedIn()) {
+      if (old && typeof old === 'object' && old.fileId) { G.deletePhoto(old.fileId).catch(() => {}) }
       try { arr[idx] = await G.uploadPhoto(f) } catch(e) { console.error(e); return }
     } else {
       resizeImage(f, 400, 0.7, dataUrl => { arr[idx] = dataUrl; renderPhotoRow(containerId, labelId, arr, fileInputId) }); return
