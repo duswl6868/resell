@@ -13,11 +13,12 @@
   const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
   const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files'
 
-  const SHEET_SCHEMA = [
+  const PRODUCT_HEADERS = ['id','brandId','name','detail','buyPrice','sellPrice','site','soldPlatform','date','soldDate','sold','memo','photos','filterValues','deletedAt']
+
+  const BASE_SHEETS = [
     { name: 'meta',            headers: ['key', 'value'] },
     { name: 'categories',      headers: ['id', 'name', 'icon', 'color', 'bg', 'order'] },
     { name: 'brands',          headers: ['id', 'name', 'categoryId'] },
-    { name: 'products',        headers: ['id','brandId','name','detail','buyPrice','sellPrice','site','soldPlatform','date','soldDate','sold','memo','photos','filterValues','deletedAt'] },
     { name: 'categoryFilters', headers: ['categoryId', 'filters', 'filterNames'] },
   ]
 
@@ -30,7 +31,7 @@
     driveFolderId: null,
   }
 
-  window.G = { state, init, login, logout, isLoggedIn, isConfigured, fetch: gFetch, ensureWorkspace, writeAll, readAll, SHEET_SCHEMA, uploadPhoto, deletePhoto, photoUrl, clearPhotoCache }
+  window.G = { state, init, login, logout, isLoggedIn, isConfigured, fetch: gFetch, ensureWorkspace, writeAll, readAll, uploadPhoto, deletePhoto, photoUrl, clearPhotoCache }
 
   function isLoggedIn() {
     return !!state.accessToken && Date.now() < state.tokenExpiresAt
@@ -71,7 +72,6 @@
     sessionStorage.setItem('resell_token_expires', String(state.tokenExpiresAt))
     state.spreadsheetId = localStorage.getItem('resell_spreadsheet_id')
     state.driveFolderId = localStorage.getItem('resell_drive_folder_id')
-    // 이메일 가져오기
     fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${resp.access_token}` }
     }).then(r => r.json()).then(u => {
@@ -120,19 +120,7 @@
     })
     let res = await doFetch()
     if (res.status === 401) {
-      await new Promise((resolve, reject) => {
-        const origCb = state.tokenClient.callback
-        state.tokenClient.callback = (resp) => {
-          state.tokenClient.callback = origCb
-          if (resp.error) return reject(resp)
-          state.accessToken = resp.access_token
-          state.tokenExpiresAt = Date.now() + (resp.expires_in - 60) * 1000
-          sessionStorage.setItem('resell_access_token', resp.access_token)
-          sessionStorage.setItem('resell_token_expires', String(state.tokenExpiresAt))
-          resolve()
-        }
-        state.tokenClient.requestAccessToken({ prompt: 'none' })
-      })
+      await reAuth()
       res = await doFetch()
     }
     return res
@@ -162,7 +150,7 @@
     if (!state.spreadsheetId) {
       const body = {
         properties: { title: 'Resell DB' },
-        sheets: SHEET_SCHEMA.map(s => ({
+        sheets: BASE_SHEETS.map(s => ({
           properties: { title: s.name },
           data: [{ rowData: [{ values: s.headers.map(h => ({ userEnteredValue: { stringValue: h } })) }] }]
         }))
@@ -175,9 +163,37 @@
       const sheet = await res.json()
       state.spreadsheetId = sheet.spreadsheetId
       localStorage.setItem('resell_spreadsheet_id', state.spreadsheetId)
-      // 스프레드시트를 Resell 폴더로 이동
       await gFetch(`${DRIVE_API}/${state.spreadsheetId}?addParents=${state.driveFolderId}&fields=id,parents`, { method: 'PATCH' })
     }
+  }
+
+  // ── 시트 존재 확인 / 생성 헬퍼 ─────────────────────────────────────
+
+  async function getExistingSheets() {
+    const res = await gFetch(`${SHEETS_API}/${state.spreadsheetId}?fields=sheets.properties.title`)
+    const data = await res.json()
+    return (data.sheets || []).map(s => s.properties.title)
+  }
+
+  async function ensureSheet(name) {
+    const existing = await getExistingSheets()
+    if (existing.includes(name)) return
+    await gFetch(`${SHEETS_API}/${state.spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{ addSheet: { properties: { title: name } } }]
+      })
+    })
+    // 헤더 추가
+    await gFetch(
+      `${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent(name)}!A1?valueInputOption=RAW`,
+      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values: [PRODUCT_HEADERS] }) }
+    )
+  }
+
+  function catSheetName(catId, catName) {
+    return `products_${catName || catId}`
   }
 
   // ── writeAll (D → Sheets) ─────────────────────────────────────────
@@ -185,14 +201,36 @@
   async function writeAll(D) {
     await ensureWorkspace()
     const now = new Date().toISOString()
-    const rows = {
-      meta: [
-        ['appVersion', '1'],
-        ['syncedAt', now],
-      ],
+
+    // 기본 시트 데이터
+    const baseRows = {
+      meta: [['appVersion', '2'], ['syncedAt', now]],
       categories: (D.categories || []).map((c, i) => [c.id, c.name, c.icon || '', c.color || '', c.bg || '', String(i)]),
       brands: (D.companies || []).map(b => [b.id, b.name, b.categoryId || '']),
-      products: [...(D.products || []), ...(D.deletedProducts || [])].map(p => [
+      categoryFilters: Object.entries(D.categoryFilters || {}).map(([id, cf]) => [
+        id, JSON.stringify(cf.filters || {}), JSON.stringify(cf.filterNames || {})
+      ]),
+    }
+    for (const sheet of BASE_SHEETS) {
+      await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/${sheet.name}:clear`, { method: 'POST' })
+      const values = [sheet.headers, ...baseRows[sheet.name]]
+      await gFetch(
+        `${SHEETS_API}/${state.spreadsheetId}/values/${sheet.name}!A1?valueInputOption=RAW`,
+        { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
+      )
+    }
+
+    // 카테고리별 products 시트
+    const allProducts = [...(D.products || []), ...(D.deletedProducts || [])]
+    const categories = (D.categories || []).filter(c => c.id !== 'all')
+    const brandCatMap = {}
+    ;(D.companies || []).forEach(b => { brandCatMap[b.id] = b.categoryId })
+
+    for (const cat of categories) {
+      const sheetName = catSheetName(cat.id, cat.name)
+      await ensureSheet(sheetName)
+      const catProducts = allProducts.filter(p => brandCatMap[p.companyId] === cat.id)
+      const rows = catProducts.map(p => [
         p.id, p.companyId || '', p.name || '', p.detail || '',
         p.buyPrice ?? '', p.sellPrice ?? '',
         p.site || '', p.soldPlatform || '',
@@ -202,16 +240,11 @@
         JSON.stringify((p.thumbnails || []).filter(t => !t?._uploading)),
         JSON.stringify(p.filterValues || {}),
         p.deletedAt || '',
-      ]),
-      categoryFilters: Object.entries(D.categoryFilters || {}).map(([id, cf]) => [
-        id, JSON.stringify(cf.filters || {}), JSON.stringify(cf.filterNames || {})
-      ]),
-    }
-    for (const sheet of SHEET_SCHEMA) {
-      await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/${sheet.name}:clear`, { method: 'POST' })
-      const values = [sheet.headers, ...rows[sheet.name]]
+      ])
+      await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent(sheetName)}:clear`, { method: 'POST' })
+      const values = [PRODUCT_HEADERS, ...rows]
       await gFetch(
-        `${SHEETS_API}/${state.spreadsheetId}/values/${sheet.name}!A1?valueInputOption=RAW`,
+        `${SHEETS_API}/${state.spreadsheetId}/values/${encodeURIComponent(sheetName)}!A1?valueInputOption=RAW`,
         { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
       )
     }
@@ -221,13 +254,16 @@
 
   async function readAll() {
     if (!state.spreadsheetId) return null
-    const ranges = SHEET_SCHEMA.map(s => `ranges=${s.name}`).join('&')
-    const res = await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values:batchGet?${ranges}&majorDimension=ROWS`)
-    const { valueRanges } = await res.json()
-    if (!valueRanges) return null
+
+    // 기본 시트 읽기
+    const baseRanges = BASE_SHEETS.map(s => `ranges=${s.name}`).join('&')
+    const baseRes = await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values:batchGet?${baseRanges}&majorDimension=ROWS`)
+    const { valueRanges: baseVR } = await baseRes.json()
+    if (!baseVR) return null
+
     const byName = {}
-    valueRanges.forEach((vr, i) => {
-      const name = SHEET_SCHEMA[i].name
+    baseVR.forEach((vr, i) => {
+      const name = BASE_SHEETS[i].name
       const [headers = [], ...rows] = vr.values || []
       byName[name] = rows.map(r => {
         const o = {}
@@ -235,7 +271,47 @@
         return o
       })
     })
-    const allProducts = (byName.products || []).map(r => ({
+
+    const categories = (byName.categories || []).map(r => ({
+      id: r.id, name: r.name, icon: r.icon, color: r.color, bg: r.bg
+    }))
+
+    // 카테고리별 products 시트 읽기
+    const existingSheets = await getExistingSheets()
+    const productSheets = categories.filter(c => c.id !== 'all').map(c => catSheetName(c.id, c.name)).filter(name => existingSheets.includes(name))
+
+    let allProducts = []
+    if (productSheets.length) {
+      const prodRanges = productSheets.map(s => `ranges=${encodeURIComponent(s)}`).join('&')
+      const prodRes = await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values:batchGet?${prodRanges}&majorDimension=ROWS`)
+      const { valueRanges: prodVR } = await prodRes.json()
+      if (prodVR) {
+        prodVR.forEach(vr => {
+          const [headers = [], ...rows] = vr.values || []
+          rows.forEach(r => {
+            const o = {}
+            headers.forEach((h, idx) => { o[h] = r[idx] !== undefined ? r[idx] : '' })
+            allProducts.push(o)
+          })
+        })
+      }
+    }
+
+    // 구버전 products 시트 호환 (마이그레이션)
+    if (!allProducts.length && existingSheets.includes('products')) {
+      const oldRes = await gFetch(`${SHEETS_API}/${state.spreadsheetId}/values/products?majorDimension=ROWS`)
+      const oldData = await oldRes.json()
+      if (oldData.values) {
+        const [headers = [], ...rows] = oldData.values
+        rows.forEach(r => {
+          const o = {}
+          headers.forEach((h, idx) => { o[h] = r[idx] !== undefined ? r[idx] : '' })
+          allProducts.push(o)
+        })
+      }
+    }
+
+    const parsedProducts = allProducts.map(r => ({
       id: r.id,
       companyId: r.brandId,
       name: r.name,
@@ -254,13 +330,12 @@
       deletedAt: r.deletedAt || null,
       isOnSale: false,
     }))
+
     return {
-      categories: (byName.categories || []).map(r => ({
-        id: r.id, name: r.name, icon: r.icon, color: r.color, bg: r.bg
-      })),
+      categories,
       companies: (byName.brands || []).map(r => ({ id: r.id, name: r.name, categoryId: r.categoryId })),
-      products: allProducts.filter(p => !p.deletedAt),
-      deletedProducts: allProducts.filter(p => !!p.deletedAt),
+      products: parsedProducts.filter(p => !p.deletedAt),
+      deletedProducts: parsedProducts.filter(p => !!p.deletedAt),
       categoryFilters: Object.fromEntries((byName.categoryFilters || []).map(r => [
         r.categoryId, { filters: JSON.parse(r.filters || '{}'), filterNames: JSON.parse(r.filterNames || '{}') }
       ])),
