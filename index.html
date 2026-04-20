@@ -2165,9 +2165,14 @@ function deleteSelected() {
   if (!selectedIds.size) return
   if (filter === 'deleted') {
     showConfirmDialog(`${selectedIds.size}개를 영구 삭제할까요?`, '이 작업은 되돌릴 수 없습니다', () => {
+      if (window.G && G.isConfigured()) {
+        D.deletedProducts.filter(p => selectedIds.has(p.id)).forEach(p => {
+          (p.thumbnails || []).forEach(t => { if (t && typeof t === 'object' && t.fileId) G.deletePhoto(t).catch(() => {}) })
+        })
+      }
       D.deletedProducts = D.deletedProducts.filter(p => !selectedIds.has(p.id))
       selectedIds.clear()
-      cleanupEmptyBrands(); save(); updateSelCount(); renderProducts(); ic()
+      save(); updateSelCount(); renderProducts(); ic()
     })
     return
   }
@@ -2182,7 +2187,7 @@ function deleteSelected() {
       D.deletedProducts.push(p)
     })
     selectedIds.clear()
-    cleanupEmptyBrands(); save(); updateSelCount(); renderProducts(); ic()
+    save(); updateSelCount(); renderProducts(); ic()
   })
 }
 function restoreSelected() {
@@ -2524,7 +2529,7 @@ function saveNewProduct() {
     soldPlatform:document.getElementById('add-sold-site').value,
     soldDate:document.getElementById('add-sold-date').value||null
   })
-  cleanupEmptyBrands(); save(); renderProducts()
+  save(); renderProducts()
   stack = ['screen-p1','screen-p2']; showScreen('screen-p2')
 }
 
@@ -2842,7 +2847,7 @@ function saveEdit() {
       }
     })
   }
-  cleanupEmptyBrands(); save(); renderProducts(); closeEdit()
+  save(); renderProducts(); closeEdit()
 }
 function deleteProduct() {
   showConfirmDialog('이 상품을 삭제할까요?', '삭제된 상품은 삭제목록으로 이동됩니다', () => {
@@ -3284,7 +3289,7 @@ function softDeleteProduct(id) {
   if (co) { p._brandName = co.name; p._brandCatId = co.categoryId }
   p.deletedAt = new Date().toISOString().slice(0,10)
   D.deletedProducts.push(p)
-  cleanupEmptyBrands(); save(); renderProducts(); ic()
+  save(); renderProducts(); ic()
 }
 function restoreProduct(id) {
   showConfirmDialog('상품을 복원할까요?', '구매목록으로 되돌아갑니다', () => {
@@ -3307,7 +3312,7 @@ function permanentDeleteProduct(id) {
       (p.thumbnails || []).forEach(t => { if (t && typeof t === 'object' && t.fileId) G.deletePhoto(t).catch(() => {}) })
     }
     D.deletedProducts = D.deletedProducts.filter(x => x.id !== id)
-    cleanupEmptyBrands(); save(); renderProducts(); ic()
+    save(); renderProducts(); ic()
   })
 }
 function deletedRowHtml(p) {
