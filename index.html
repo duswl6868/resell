@@ -1022,7 +1022,7 @@ function resizeImage(file, maxSize, quality, callback) {
 function getThumb(p) {
   const t = p.thumbnails?.[0] || p.thumbnail || null
   if (!t) return null
-  if (typeof t === 'object') return t.thumbFileId || t.fileId
+  if (typeof t === 'object') return t.thumbFileId || t.fileId || t._preview || null
   return t
 }
 function getFullPhoto(t) {
@@ -1030,7 +1030,7 @@ function getFullPhoto(t) {
   if (typeof t === 'object') return t.fileId
   return t
 }
-function isFileId(v) { return v && typeof v === 'string' && !v.startsWith('data:') }
+function isFileId(v) { return v && typeof v === 'string' && !v.startsWith('data:') && !v.startsWith('blob:') }
 function thumbImgHtml(thumbVal, cls, size) {
   if (!thumbVal) return `<div class="thumb-placeholder" style="width:${size||60}px;height:${size||60}px"><i data-lucide="image" style="width:20px;height:20px;color:#E5E7EB"></i></div>`
   if (isFileId(thumbVal)) return `<img class="${cls||'thumb-img'}" data-file-id="${thumbVal}" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" style="width:${size||60}px;height:${size||60}px">`
