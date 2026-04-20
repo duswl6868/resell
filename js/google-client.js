@@ -30,10 +30,14 @@
     driveFolderId: null,
   }
 
-  window.G = { state, init, login, logout, isLoggedIn, fetch: gFetch, ensureWorkspace, writeAll, readAll, SHEET_SCHEMA, uploadPhoto, deletePhoto, photoUrl, clearPhotoCache }
+  window.G = { state, init, login, logout, isLoggedIn, isConfigured, fetch: gFetch, ensureWorkspace, writeAll, readAll, SHEET_SCHEMA, uploadPhoto, deletePhoto, photoUrl, clearPhotoCache }
 
   function isLoggedIn() {
     return !!state.accessToken && Date.now() < state.tokenExpiresAt
+  }
+
+  function isConfigured() {
+    return !!state.spreadsheetId || !!localStorage.getItem('resell_spreadsheet_id')
   }
 
   // ── OAuth ──────────────────────────────────────────────────────────
@@ -93,7 +97,22 @@
 
   // ── gFetch (토큰 만료 시 자동 재인증) ──────────────────────────────
 
+  async function reAuth() {
+    if (!state.tokenClient) init()
+    await new Promise((resolve, reject) => {
+      const origCb = state.tokenClient.callback
+      state.tokenClient.callback = (resp) => {
+        state.tokenClient.callback = origCb
+        if (resp.error) return reject(resp)
+        onToken(resp)
+        resolve()
+      }
+      state.tokenClient.requestAccessToken({ prompt: '' })
+    })
+  }
+
   async function gFetch(url, opts = {}) {
+    if (!isLoggedIn() && isConfigured()) await reAuth()
     if (!isLoggedIn()) throw new Error('NOT_LOGGED_IN')
     const doFetch = () => fetch(url, {
       ...opts,

@@ -903,7 +903,7 @@ let D = JSON.parse(LS.getItem('resell_data')) || JSON.parse(JSON.stringify(DEFAU
 let _gSyncTimer = null
 const save = () => {
   LS.setItem('resell_data', JSON.stringify(D))
-  if (window.G && G.isLoggedIn()) {
+  if (window.G && G.isConfigured()) {
     clearTimeout(_gSyncTimer)
     _gSyncTimer = setTimeout(async () => {
       try { await G.writeAll(D) } catch (e) { console.error('[save] sheet sync failed', e) }
@@ -2309,7 +2309,7 @@ function renderPhotoRow(containerId, labelId, thumbs, fileInputId) {
 function removePhoto(containerId, labelId, fileInputId, idx) {
   const arr = containerId === 'add-photo-row' ? addThumbs : editThumbs
   const removed = arr.splice(idx, 1)[0]
-  if (removed && typeof removed === 'object' && removed.fileId && window.G && G.isLoggedIn()) {
+  if (removed && typeof removed === 'object' && removed.fileId && window.G && G.isConfigured()) {
     G.deletePhoto(removed).catch(() => {})
   }
   renderPhotoRow(containerId, labelId, arr, fileInputId)
@@ -2321,7 +2321,7 @@ function replacePhoto(containerId, labelId, fileInputId, idx) {
     const f = this.files[0]; if (!f) return
     const arr = containerId === 'add-photo-row' ? addThumbs : editThumbs
     const old = arr[idx]
-    if (window.G && G.isLoggedIn()) {
+    if (window.G && G.isConfigured()) {
       if (old && typeof old === 'object' && old.fileId) { G.deletePhoto(old).catch(() => {}) }
       startUpload(f, arr, idx, containerId, labelId, fileInputId)
     } else {
@@ -2580,7 +2580,7 @@ function saveNewProduct() {
 document.getElementById('add-file').addEventListener('change', async function() {
   const f = this.files[0]; if (!f) return
   if (addThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
-  if (window.G && G.isLoggedIn()) {
+  if (window.G && G.isConfigured()) {
     startUpload(f, addThumbs, addThumbs.length, 'add-photo-row','add-photo-label','add-file')
   } else {
     resizeImage(f, 400, 0.7, dataUrl => { addThumbs.push(dataUrl); renderPhotoRow('add-photo-row','add-photo-label',addThumbs,'add-file') })
@@ -2883,7 +2883,7 @@ function saveEdit() {
   p.thumbnails = [...editThumbs]
   p.filterValues = getSelectedFilterValues('edit-filter-chips-container')
   // 제거된 Drive 사진 정리
-  if (window.G && G.isLoggedIn()) {
+  if (window.G && G.isConfigured()) {
     const newIds = new Set(editThumbs.filter(t => t && typeof t === 'object' && t.fileId).map(t => t.fileId))
     editThumbsOriginal.forEach(t => {
       if (t && typeof t === 'object' && t.fileId && !newIds.has(t.fileId)) {
@@ -2904,7 +2904,7 @@ function deleteProduct() {
 document.getElementById('edit-file').addEventListener('change', async function() {
   const f = this.files[0]; if (!f) return
   if (editThumbs.length >= 10) { alert('최대 10장까지 추가할 수 있습니다'); return }
-  if (window.G && G.isLoggedIn()) {
+  if (window.G && G.isConfigured()) {
     startUpload(f, editThumbs, editThumbs.length, 'edit-photo-row','edit-photo-label','edit-file')
   } else {
     resizeImage(f, 400, 0.7, dataUrl => { editThumbs.push(dataUrl); renderPhotoRow('edit-photo-row','edit-photo-label',editThumbs,'edit-file') })
@@ -3349,7 +3349,7 @@ function restoreProduct(id) {
 function permanentDeleteProduct(id) {
   showConfirmDialog('영구 삭제할까요?', '이 작업은 되돌릴 수 없습니다', () => {
     const p = D.deletedProducts.find(x => x.id === id)
-    if (p && window.G && G.isLoggedIn()) {
+    if (p && window.G && G.isConfigured()) {
       (p.thumbnails || []).forEach(t => { if (t && typeof t === 'object' && t.fileId) G.deletePhoto(t).catch(() => {}) })
     }
     D.deletedProducts = D.deletedProducts.filter(x => x.id !== id)
