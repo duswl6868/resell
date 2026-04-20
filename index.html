@@ -1373,7 +1373,9 @@ function renderProducts() {
 }
 
 function renderSoldProducts(el) {
-  const soldItems = D.products.filter(p => p.sold)
+  const cos = catId === 'all' ? D.companies : D.companies.filter(c => c.categoryId === catId)
+  const coIds = new Set(cos.map(c => c.id))
+  const soldItems = D.products.filter(p => p.sold && coIds.has(p.companyId))
   if (!soldItems.length) { el.innerHTML = '<div class="empty-msg">판매 완료된 상품이 없습니다</div>'; return }
   const groups = {}
   soldItems.sort((a,b) => (b.soldDate||'').localeCompare(a.soldDate||'')).forEach(p => {
@@ -3377,7 +3379,9 @@ function deletedRowHtml(p) {
   </div>`
 }
 function renderDeletedProducts(el) {
-  const items = D.deletedProducts || []
+  const cos = catId === 'all' ? D.companies : D.companies.filter(c => c.categoryId === catId)
+  const coIds = new Set(cos.map(c => c.id))
+  const items = (D.deletedProducts || []).filter(p => coIds.has(p.companyId))
   if (!items.length) { el.innerHTML = '<div class="empty-msg">삭제된 상품이 없습니다</div>'; return }
   if (brandGroup) {
     const byBrand = {}
