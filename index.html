@@ -1449,8 +1449,10 @@ function gridHtml(p) {
     priceHtml = p.buyPrice ? '₩'+p.buyPrice.toLocaleString() : '-'
   }
   const clickAction = selectMode ? `toggleSelectItem('${p.id}',event)` : `openDetail('${p.id}')`
+  const checked = selectMode && selectedIds.has(p.id)
+  const chkHtml = selectMode ? `<div class="grid-check${checked?' checked':''}" style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:11px;${checked?'background:#3B82F6':'border:2px solid #D1D5DB;background:rgba(255,255,255,.6)'};display:flex;align-items:center;justify-content:center;z-index:2">${checked?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':''}</div>` : ''
   return `<div class="grid-card" onclick="${clickAction}">
-    <div style="position:relative">${thumb}${(!p.sold&&p.sellPrice)?'<div class="grid-card-sale">판매중</div>':''}</div>
+    <div style="position:relative">${chkHtml}${thumb}${(!p.sold&&p.sellPrice)?'<div class="grid-card-sale">판매중</div>':''}</div>
     <div class="grid-card-body">
       <div class="grid-card-name">${p.name}</div>
       ${p.detail?`<div class="grid-card-detail">${p.detail}</div>`:''}
@@ -2130,9 +2132,18 @@ function toggleSelectItem(id, ev) {
   ev.stopPropagation()
   if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id)
   const row = ev.currentTarget
-  const chk = row.querySelector('.select-check')
-  chk.classList.toggle('checked', selectedIds.has(id))
-  chk.innerHTML = selectedIds.has(id) ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : ''
+  const chk = row.querySelector('.select-check') || row.querySelector('.grid-check')
+  if (chk) {
+    const sel = selectedIds.has(id)
+    chk.classList.toggle('checked', sel)
+    if (chk.classList.contains('grid-check')) {
+      chk.style.background = sel ? '#3B82F6' : 'rgba(255,255,255,.6)'
+      chk.style.border = sel ? 'none' : '2px solid #D1D5DB'
+      chk.innerHTML = sel ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : ''
+    } else {
+      chk.innerHTML = sel ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : ''
+    }
+  }
   if (filter === 'deleted') row.style.opacity = selectedIds.has(id) ? '1' : '0.6'
   updateSelCount()
 }
